@@ -197,6 +197,21 @@ public class SelectionManager {
         player.sendMessage("§a"+Residence.getLanguage().getPhrase("SelectionSuccess"));
         showSelectionInfo(player);
     }
+    
+    public void modifyChunk(Player player) {
+        Chunk chunk = player.getWorld().getChunkAt(player.getLocation());
+        Location loc1 = this.playerLoc1.get(player.getName());
+        Location loc2 = this.playerLoc2.get(player.getName());
+        int xcoord = Math.min(chunk.getX() * 16, loc1.getBlockX());
+        int zcoord = Math.min(chunk.getZ() * 16, loc1.getBlockZ());
+        int ycoord = 0;
+        int xmax = Math.max(chunk.getX() * 16 + 16, loc2.getBlockX());
+        int zmax = Math.max(chunk.getZ() * 16 + 16, loc2.getBlockZ());
+        int ymax = 127;
+        this.playerLoc1.put(player.getName(), new Location(player.getWorld(), xcoord, ycoord, zcoord));
+        this.playerLoc2.put(player.getName(), new Location(player.getWorld(), xmax, ymax, zmax));
+        player.sendMessage("§a"+Residence.getLanguage().getPhrase("SelectionSuccess"));
+    }
 
     public void modify(Player player, boolean shift, int amount)
     {
