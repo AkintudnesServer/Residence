@@ -16,8 +16,6 @@ import com.bekvon.bukkit.residence.economy.EconomyInterface;
 import com.bekvon.bukkit.residence.economy.EssentialsEcoAdapter;
 import com.bekvon.bukkit.residence.economy.IConomy4Adapter;
 import com.bekvon.bukkit.residence.economy.IConomy5Adapter;
-import com.bekvon.bukkit.residence.economy.IConomy6Adapter;
-import com.bekvon.bukkit.residence.economy.MineConomyAdapter;
 import com.bekvon.bukkit.residence.economy.RealShopEconomy;
 import com.bekvon.bukkit.residence.economy.rent.RentManager;
 import com.bekvon.bukkit.residence.economy.TransactionManager;
@@ -37,7 +35,6 @@ import com.bekvon.bukkit.residence.text.help.HelpEntry;
 import com.bekvon.bukkit.residence.text.help.InformationPager;
 import com.earth2me.essentials.Essentials;
 import com.iConomy.iConomy;
-import com.spikensbror.bukkit.mineconomy.MineConomy;
 import cosine.boseconomy.BOSEconomy;
 import fr.crafter.tickleman.RealShop.RealShopPlugin;
 
@@ -216,8 +213,6 @@ public class Residence extends JavaPlugin {
             if (this.getConfiguration().getBoolean("Global.EnableEconomy", false) && econsys != null) {
                 if (econsys.toLowerCase().equals("iconomy")) {
                     this.loadIConomy();
-                } else if (econsys.toLowerCase().equals("mineconomy")) {
-                    this.loadMineConomy();
                 } else if (econsys.toLowerCase().equals("boseconomy")) {
                     this.loadBOSEconomy();
                 } else if (econsys.toLowerCase().equals("essentials")) {
@@ -444,17 +439,6 @@ public class Residence extends JavaPlugin {
             Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] Successfully linked with iConomy!");
         } else {
             Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] iConomy NOT found!");
-        }
-    }
-
-    private void loadMineConomy()
-    {
-        Plugin p = getServer().getPluginManager().getPlugin("MineConomy");
-        if (p != null) {
-            economy = new MineConomyAdapter((MineConomy)p);
-            Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] Successfully linked with MineConomy!");
-        } else {
-            Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] MineConomy NOT found!");
         }
     }
 
