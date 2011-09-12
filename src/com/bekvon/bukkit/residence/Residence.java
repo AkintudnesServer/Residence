@@ -590,7 +590,7 @@ public class Residence extends JavaPlugin {
                         return true;
                     }
                     if (!group.freeSelectAccess() && !(args.length == 2 && args[1].equals("chunk"))
-                            || !(args.length == 3 && args[1].equals("expand") && args[2].equals("chunk"))) {
+                            && !(args.length == 3 && args[1].equals("expand") && args[2].equals("chunk"))) {
                         player.sendMessage("§cCan't select non-chunk-sized selections.");
                         return true;
                     }
