@@ -45,7 +45,7 @@ public class ResidencePlayerListener extends PlayerListener {
     protected int minUpdateTime;
     protected boolean chatenabled;
     protected List<String> playerToggleChat;
-    
+
     public ResidencePlayerListener()
     {
         cache = new HashMap<String,String>();
@@ -98,6 +98,10 @@ public class ResidencePlayerListener extends PlayerListener {
             Block block = event.getClickedBlock();
             if (player.getItemInHand().getTypeId() == Residence.getConfig().getSelectionTooldID()) {
                 PermissionGroup group = Residence.getPermissionManager().getGroup(player);
+                if (!group.freeSelectAccess()) {
+                    player.sendMessage("§cCan't select non-chunk-sized selections.");
+                    return;
+                }
                 if(group.getMaxSubzoneDepth() > 0 || group.canCreateResidences() || resadmin)
                 {
                     if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
