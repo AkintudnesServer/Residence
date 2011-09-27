@@ -11,6 +11,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.CreatureSpawnEvent;
+import org.bukkit.event.entity.EndermanPickupEvent;
+import org.bukkit.event.entity.EndermanPlaceEvent;
 import org.bukkit.event.entity.EntityCombustEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -32,12 +34,45 @@ import org.bukkit.entity.Wolf;
 import org.bukkit.event.entity.ExplosionPrimeEvent;
 import org.bukkit.event.painting.PaintingBreakEvent;
 import org.bukkit.event.painting.PaintingPlaceEvent;
+import org.bukkit.event.painting.PaintingBreakByEntityEvent;
 
 /**
  *
  * @author Administrator
  */
 public class ResidenceEntityListener extends EntityListener {
+
+    @Override
+    public void onEndermanPickup(EndermanPickupEvent event) {
+        ClaimedResidence res = Residence.getResidenceManager().getByLoc(event.getBlock().getLocation());
+        if (res != null) {
+            ResidencePermissions perms = res.getPermissions();
+            if (!perms.has("build", true)) {
+                event.setCancelled(true);
+            }
+        } else {
+            FlagPermissions perms = Residence.getWorldFlags().getPerms(event.getBlock().getLocation().getWorld().getName());
+            if (!perms.has("build", true)) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @Override
+    public void onEndermanPlace(EndermanPlaceEvent event) {
+        ClaimedResidence res = Residence.getResidenceManager().getByLoc(event.getLocation());
+        if (res != null) {
+            ResidencePermissions perms = res.getPermissions();
+            if (!perms.has("build", true)) {
+                event.setCancelled(true);
+            }
+        } else {
+            FlagPermissions perms = Residence.getWorldFlags().getPerms(event.getLocation().getWorld().getName());
+            if (!perms.has("build", true)) {
+                event.setCancelled(true);
+            }
+        }
+    }
 
     @Override
     public void onCreatureSpawn(CreatureSpawnEvent event) {
@@ -67,13 +102,21 @@ public class ResidenceEntityListener extends EntityListener {
     @Override
     public void onPaintingPlace(PaintingPlaceEvent event) {
         ClaimedResidence res = Residence.getResidenceManager().getByLoc(event.getBlock().getLocation());
+        Player player = event.getPlayer();
         if(res!=null)
         {
-            Player player = event.getPlayer();
             ResidencePermissions perms = res.getPermissions();
             String pname = player.getName();
             boolean hasbuild = perms.playerHas(pname, "build", true);
             boolean hasplace = perms.playerHas(pname, "place", hasbuild);
+            if ((!hasbuild && !hasplace) || !hasplace) {
+                event.setCancelled(true);
+                player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));
+            }
+        } else {
+            FlagPermissions perms = Residence.getWorldFlags().getPerms(player);
+            boolean hasbuild = perms.has("build", true);
+            boolean hasplace = perms.has("destroy", hasbuild);
             if ((!hasbuild && !hasplace) || !hasplace) {
                 event.setCancelled(true);
                 player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));
@@ -83,21 +126,34 @@ public class ResidenceEntityListener extends EntityListener {
 
     @Override
     public void onPaintingBreak(PaintingBreakEvent event) {
-        /* Currently no way to get the player thats breaking it :(
-        ClaimedResidence res = Residence.getResidenceManager().getByLoc(event.getBlock().getLocation());
-        if(res!=null)
-        {
-            Player player = event.getPlayer();
-            ResidencePermissions perms = res.getPermissions();
-            String pname = player.getName();
-            boolean hasbuild = perms.playerHas(pname, "build", true);
-            boolean hasplace = perms.playerHas(pname, "destroy", hasbuild);
-            if ((!hasbuild && !hasplace) || !hasplace) {
-                event.setCancelled(true);
-                player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));
-            }
-        }*/
-    }
+		if(event instanceof PaintingBreakByEntityEvent)
+		{
+			PaintingBreakByEntityEvent evt = (PaintingBreakByEntityEvent) event;
+			if(evt.getRemover() instanceof Player)
+			{
+				Player player = (Player) evt.getRemover();
+				String pname = player.getName();
+				ClaimedResidence res = Residence.getResidenceManager().getByLoc(event.getPainting().getLocation());
+				if (res != null) {
+					ResidencePermissions perms = res.getPermissions();
+					boolean hasbuild = perms.playerHas(pname, "build", true);
+					boolean hasplace = perms.playerHas(pname, "place", hasbuild);
+					if ((!hasbuild && !hasplace) || !hasplace) {
+						event.setCancelled(true);
+						player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));
+					}
+				} else {
+					FlagPermissions perms = Residence.getWorldFlags().getPerms(player);
+					boolean hasbuild = perms.has("build", true);
+					boolean hasplace = perms.has("place", hasbuild);
+					if ((!hasbuild && !hasplace) || !hasplace) {
+						event.setCancelled(true);
+						player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));
+					}
+				}
+			}
+		}
+	}
 
     @Override
     public void onEntityCombust(EntityCombustEvent event) {

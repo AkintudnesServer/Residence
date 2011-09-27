@@ -30,6 +30,8 @@ import com.bekvon.bukkit.residence.protection.ResidenceManager;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions;
 import com.bekvon.bukkit.residence.protection.WorldFlagManager;
+import com.bekvon.bukkit.residence.spout.ResidenceSpout;
+import com.bekvon.bukkit.residence.spout.ResidenceSpoutListener;
 import com.bekvon.bukkit.residence.text.Language;
 import com.bekvon.bukkit.residence.text.help.HelpEntry;
 import com.bekvon.bukkit.residence.text.help.InformationPager;
@@ -49,9 +51,11 @@ import java.util.jar.JarFile;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.minecraft.server.FontAllowedCharacters;
+import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Server;
+import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
@@ -62,6 +66,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.config.Configuration;
+import org.getspout.spoutapi.SpoutManager;
 
 /**
  *
@@ -77,6 +82,7 @@ public class Residence extends JavaPlugin {
     private static ResidenceBlockListener blistener;
     private static ResidencePlayerListener plistener;
     private static ResidenceEntityListener elistener;
+    private static ResidenceSpoutListener slistener;
     private static TransactionManager tmanager;
     private static PermissionListManager pmanager;
     private static LeaseManager leasemanager;
@@ -90,11 +96,11 @@ public class Residence extends JavaPlugin {
     private boolean firstenable = true;
     private static EconomyInterface economy;
     private final static int saveVersion = 1;
-    private static File ymlSaveLoc;
-    private static int leaseBukkitId = -1;
-    private static int rentBukkitId = -1;
-    private static int healBukkitId = -1;
-    private static int autosaveBukkitId = -1;
+    private static File dataFolder;
+    private static int leaseBukkitId=-1;
+    private static int rentBukkitId=-1;
+    private static int healBukkitId=-1;
+    private static int autosaveBukkitId=-1;
     private static boolean initsuccess = false;
     private Map<String, String> deleteConfirm;
     private Runnable doHeals = new Runnable() {
@@ -156,7 +162,8 @@ public class Residence extends JavaPlugin {
             initsuccess = false;
             deleteConfirm = new HashMap<String, String>();
             server = this.getServer();
-            if (!new File(this.getDataFolder(), "config.yml").isFile()) {
+            dataFolder = this.getDataFolder();
+            if (!new File(dataFolder, "config.yml").isFile()) {
                 this.writeDefaultConfigFromJar();
             }
             this.getConfiguration().load();
@@ -171,8 +178,8 @@ public class Residence extends JavaPlugin {
                 Plugin plugin = server.getPluginManager().getPlugin(multiworld);
                 if (plugin != null) {
                     if (!plugin.isEnabled()) {
-                        server.getPluginManager().enablePlugin(plugin);
                         System.out.println("[Residence] - Enabling multiworld plugin: " + multiworld);
+                        server.getPluginManager().enablePlugin(plugin);
                     }
                 }
             }
@@ -181,9 +188,10 @@ public class Residence extends JavaPlugin {
             wmanager = new WorldFlagManager(this.getConfiguration());
             chatmanager = new ChatManager();
             rentmanager = new RentManager();
-            try {
-                File langFile = new File(new File(this.getDataFolder(), "Language"), cmanager.getLanguage() + ".yml");
-                if (this.checkNewLanguageVersion()) {
+            try
+            {
+                File langFile = new File(new File(dataFolder, "Language"), cmanager.getLanguage() + ".yml");
+                if(this.checkNewLanguageVersion())
                     this.writeDefaultLanguageFile();
                 }
                 if (langFile.isFile()) {
@@ -202,10 +210,9 @@ public class Residence extends JavaPlugin {
                 helppages = new HelpEntry("");
                 language = new Language();
             }
-            ymlSaveLoc = new File(this.getDataFolder(), "res.yml");
             economy = null;
-            if (!this.getDataFolder().isDirectory()) {
-                this.getDataFolder().mkdirs();
+            if (!dataFolder.isDirectory()) {
+                dataFolder.mkdirs();
             }
             String econsys = cmanager.getEconomySystem();
             if (this.getConfiguration().getBoolean("Global.EnableEconomy", false) && econsys != null) {
@@ -259,9 +266,18 @@ public class Residence extends JavaPlugin {
                 pm.registerEvent(Event.Type.ENTITY_DAMAGE, elistener, Priority.Lowest, this);
                 pm.registerEvent(Event.Type.ENTITY_EXPLODE, elistener, Priority.Lowest, this);
                 pm.registerEvent(Event.Type.EXPLOSION_PRIME, elistener, Priority.Lowest, this);
+		pm.registerEvent(Event.Type.PAINTING_PLACE, elistener, Priority.Lowest, this);
+		pm.registerEvent(Event.Type.PAINTING_BREAK, elistener, Priority.Lowest, this);
                 pm.registerEvent(Event.Type.BLOCK_SPREAD, blistener, Priority.Lowest, this);
                 pm.registerEvent(Event.Type.BLOCK_PISTON_EXTEND, blistener, Priority.Lowest, this);
                 pm.registerEvent(Event.Type.BLOCK_PISTON_RETRACT, blistener, Priority.Lowest, this);
+                pm.registerEvent(Event.Type.ENDERMAN_PICKUP, elistener, Priority.Lowest, this);
+                pm.registerEvent(Event.Type.ENDERMAN_PLACE, elistener, Priority.Lowest, this);
+                if(cmanager.enableSpout())
+                {
+                    slistener = new ResidenceSpoutListener();
+                    pm.registerEvent(Event.Type.CUSTOM_EVENT, slistener, Priority.Lowest, this);
+                }
                 firstenable = false;
             } else {
                 plistener.reload();
@@ -317,6 +333,11 @@ public class Residence extends JavaPlugin {
             }
         }
         return true;
+    }
+
+    public static File getDataLocation()
+    {
+        return dataFolder;
     }
 
     public static ResidenceManager getResidenceManager() {
@@ -403,19 +424,24 @@ public class Residence extends JavaPlugin {
     private void loadIConomy() {
         Plugin p = getServer().getPluginManager().getPlugin("iConomy");
         if (p != null) {
-            if (p.getDescription().getVersion().startsWith("6")) {
-                Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] iConomy 6 NOT SUPPORTED YET!");
-                //economy = new IConomy6Adapter((com.iCo6.iConomy)p);
-                return;
-            } else if (p.getDescription().getVersion().startsWith("5")) {
-                economy = new IConomy5Adapter((iConomy) p);
-            } else if (p.getDescription().getVersion().startsWith("4")) {
-                economy = new IConomy4Adapter((com.nijiko.coelho.iConomy.iConomy) p);
-            } else {
+            if(p.getDescription().getVersion().startsWith("6"))
+            {
+                economy = new IConomy6Adapter((com.iCo6.iConomy)p);
+            }
+            else if(p.getDescription().getVersion().startsWith("5"))
+            {
+                economy = new IConomy5Adapter((iConomy)p);
+            }
+            else if(p.getDescription().getVersion().startsWith("4"))
+            {
+                economy = new IConomy4Adapter((com.nijiko.coelho.iConomy.iConomy)p);
+            }
+            else
+            {
                 Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] UNKNOWN iConomy version!");
                 return;
             }
-            Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] Successfully linked with iConomy!");
+            Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] Successfully linked with iConomy! Version: " + p.getDescription().getVersion());
         } else {
             Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] iConomy NOT found!");
         }
@@ -476,7 +502,7 @@ public class Residence extends JavaPlugin {
         if (command.getName().equals("resload")) {
             if (!(sender instanceof Player) || (sender instanceof Player && gmanager.isResidenceAdmin((Player) sender))) {
                 try {
-                    this.loadYMLSave(ymlSaveLoc);
+                    this.loadYml();
                     sender.sendMessage("§a[Residence] Reloaded save file...");
                 } catch (Exception ex) {
                     sender.sendMessage("§c[Residence] Unable to reload the save file, exception occured!");
@@ -716,8 +742,20 @@ public class Residence extends JavaPlugin {
                         player.sendMessage("§c" + language.getPhrase("SelectPoints"));
                         return true;
                     }
-                } else if (args[0].equals("sublist")) {
-                    if (args.length == 1 || args.length == 2 || args.length == 3) {
+                } else if(args[0].equals("gui"))
+                {
+                    if(slistener!=null)
+                    {
+                        if(args.length==1)
+                            ResidenceSpout.showResidenceFlagGUI(SpoutManager.getPlayer(player), this, rmanager.getNameByLoc(player.getLocation()), resadmin);
+                        else if(args.length==2)
+                            ResidenceSpout.showResidenceFlagGUI(SpoutManager.getPlayer(player), this, args[1], resadmin);
+                    }
+                    return true;
+                }
+                else if (args[0].equals("sublist")) {
+                    if(args.length==1 || args.length == 2 || args.length == 3)
+                    {
                         ClaimedResidence res;
                         if (args.length == 1) {
                             res = rmanager.getByLoc(player.getLocation());
@@ -1510,76 +1548,125 @@ public class Residence extends JavaPlugin {
     }
 
     private void saveYml() {
-        YMLSaveHelper yml = new YMLSaveHelper(ymlSaveLoc);
-        yml.getRoot().put("SaveVersion", saveVersion);
-        yml.addMap("Residences", rmanager.save());
-        yml.addMap("Economy", tmanager.save());
-        yml.addMap("Leases", leasemanager.save());
-        yml.addMap("PermissionLists", pmanager.save());
-        yml.addMap("RentSystem", rentmanager.save());
-        File backupFile = new File(ymlSaveLoc.getParentFile(), ymlSaveLoc.getName() + ".bak");
-        if (ymlSaveLoc.isFile()) {
-            if (backupFile.isFile()) {
-                backupFile.delete();
-            }
-            ymlSaveLoc.renameTo(backupFile);
+        File saveFolder = new File(dataFolder, "Save");
+        File worldFolder = new File(saveFolder, "Worlds");
+        worldFolder.mkdirs();
+        YMLSaveHelper yml;
+        Map<String, Object> save = rmanager.save();
+        for(Entry<String, Object> entry : save.entrySet())
+        {
+            yml = new YMLSaveHelper(new File(worldFolder, "res_"+entry.getKey()+".yml"));
+            yml.getRoot().put("Seed", server.getWorld(entry.getKey()).getSeed());
+            yml.addMap("Residences", (Map) entry.getValue());
+            yml.save();
         }
+        yml = new YMLSaveHelper(new File(saveFolder,"forsale.yml"));
+        yml.save();
+        yml.addMap("Economy", tmanager.save());
+        yml.save();
+        yml = new YMLSaveHelper(new File(saveFolder,"leases.yml"));
+        yml.addMap("Leases", leasemanager.save());
+        yml.save();
+        yml = new YMLSaveHelper(new File(saveFolder,"permlists.yml"));
+        yml.addMap("PermissionLists", pmanager.save());
+        yml.save();
+        yml = new YMLSaveHelper(new File(saveFolder,"rent.yml"));
+        yml.addMap("RentSystem", rentmanager.save());
         yml.save();
         if (cmanager.showIntervalMessages()) {
             System.out.println("[Residence] - Saved Residences...");
         }
     }
 
-    private void loadYml() throws Exception {
+    private boolean loadYml() throws Exception
+    {
+        File saveFolder = new File(dataFolder, "Save");
         try {
-            if (ymlSaveLoc.isFile()) {
-                this.loadYMLSave(ymlSaveLoc);
-            } else {
-                File bakfile = new File(ymlSaveLoc.getParentFile(), ymlSaveLoc.getName() + ".bak");
-                if (bakfile.isFile()) {
-                    this.loadYMLSave(bakfile);
-                } else {
-                    System.out.println("[Residence] No save file found...");
-                }
+            File oldFile = new File(dataFolder, "res.yml");
+            if(oldFile.isFile() && !saveFolder.isDirectory())
+            {
+                System.out.println("[Residence] Upgrading to new save system...");
+                this.oldLoadYMLSave(oldFile);
+                this.saveYml();
+                oldFile.delete();
+                oldFile = new File(dataFolder, "res.yml.bak");
+                if(oldFile.isFile())
+                    oldFile.delete();
             }
+            else
+            {
+                File worldFolder = new File(saveFolder, "Worlds");
+                if(!saveFolder.isDirectory())
+                {
+                    System.out.println("[Residence] Save directory does not exist...");
+                    return true;
+                }
+                YMLSaveHelper yml;
+                File loadFile;
+                HashMap<String, Object> worlds = new HashMap<String, Object>();
+                for (World world : server.getWorlds()) {
+                    loadFile = new File(worldFolder, "res_" + world.getName() + ".yml");
+                    if (loadFile.isFile()) {
+                        yml = new YMLSaveHelper(loadFile);
+                        yml.load();
+                        Object obj = yml.getRoot().get("Seed");
+                        Long seed = 0L;
+                        if (obj != null) {
+                            if (obj instanceof Long) {
+                                seed = (Long) obj;
+                            } else if (obj instanceof Integer) {
+                                seed = ((Integer) obj).longValue();
+                            }
+                        }
+                        if(seed==0 || seed == world.getSeed())
+                            worlds.put(world.getName(), yml.getRoot().get("Residences"));
+                        else
+                            loadFile.delete();
+                    }
+                }
+                rmanager = ResidenceManager.load(worlds);
+                loadFile = new File(saveFolder, "forsale.yml");
+                if(loadFile.isFile())
+                {
+                    yml = new YMLSaveHelper(loadFile);
+                    yml.load();
+                    tmanager = TransactionManager.load(yml.getMap("Economy"), gmanager, rmanager);
+                }
+                loadFile = new File(saveFolder, "leases.yml");
+                if(loadFile.isFile())
+                {
+                    yml = new YMLSaveHelper(loadFile);
+                    yml.load();
+                    leasemanager = LeaseManager.load(yml.getMap("Leases"), rmanager);
+                }
+                loadFile = new File(saveFolder, "permlists.yml");
+                if(loadFile.isFile())
+                {
+                    yml = new YMLSaveHelper(loadFile);
+                    yml.load();
+                    pmanager = PermissionListManager.load(yml.getMap("PermissionLists"));
+                }
+                loadFile = new File(saveFolder, "rent.yml");
+                if(loadFile.isFile())
+                {
+                    yml = new YMLSaveHelper(loadFile);
+                    yml.load();
+                    rentmanager = RentManager.load(yml.getMap("RentSystem"));
+                }
+                System.out.print("[Residence] Loaded...");
+            }
+            return true;
         } catch (Exception ex) {
             Logger.getLogger(Residence.class.getName()).log(Level.SEVERE, null, ex);
-            File erroredfile;
-            if (ymlSaveLoc.isFile()) {
-                erroredfile = new File(ymlSaveLoc.getParent(), ymlSaveLoc.getName() + "-ERRORED.yml");
-            } else {
-                File bakfile = new File(ymlSaveLoc.getParentFile(), ymlSaveLoc.getName() + ".bak");
-                erroredfile = new File(bakfile.getParent(), bakfile.getName() + "-ERRORED.yml");
-            }
-            if (erroredfile.isFile()) {
-                erroredfile.delete();
-            }
-            ymlSaveLoc.renameTo(erroredfile);
-            try {
-                System.out.println("[Residence] - Main Save Corrupt, Loading Backup...");
-                this.loadYMLSave(new File(ymlSaveLoc.getParentFile(), ymlSaveLoc.getName() + ".bak"));
-                this.saveYml();
-            } catch (Exception ex1) {
-                Logger.getLogger(Residence.class.getName()).log(Level.SEVERE, null, ex1);
-                if (cmanager.stopOnSaveError()) {
-                    this.setEnabled(false);
-                    System.out.print("[Residence] - Save corrupted, disabling Residence!");
-                    throw ex1;
-                }
-            }
+            throw(ex);
         }
     }
 
-    private boolean loadYMLSave(File saveLoc) throws Exception {
+    private boolean oldLoadYMLSave(File saveLoc) throws Exception {
         if (saveLoc.isFile()) {
             YMLSaveHelper yml = new YMLSaveHelper(saveLoc);
             yml.load();
-            int sv = yml.getInt("SaveVersion", 0);
-            if (sv == 0) {
-                saveLoc.renameTo(new File(saveLoc.getParentFile(), "pre-upgrade-res.yml"));
-                yml = upgradeSave(yml);
-            }
-            rmanager = ResidenceManager.load(yml.getMap("Residences"));
+            rmanager = ResidenceManager.loadMap(yml.getMap("Residences"), new ResidenceManager());
             tmanager = TransactionManager.load(yml.getMap("Economy"), gmanager, rmanager);
             leasemanager = LeaseManager.load(yml.getMap("Leases"), rmanager);
             pmanager = PermissionListManager.load(yml.getMap("PermissionLists"));
@@ -1668,93 +1755,5 @@ public class Residence extends JavaPlugin {
             System.out.println("[Residence] Failed to write file: " + writeName + " from the Residence jar file, Error:" + ex);
             return false;
         }
-    }
-
-    public YMLSaveHelper upgradeSave(YMLSaveHelper yml) throws Exception {
-        try {
-            Map<String, Object> root = yml.getRoot();
-            Map<String, Object> resmap = (Map<String, Object>) root.get("residences");
-            Map<String, Object> newmap = new HashMap<String, Object>();
-            for (Entry<String, Object> entry : resmap.entrySet()) {
-                Map<String, Object> resvals = (Map<String, Object>) entry.getValue();
-                newmap.put(entry.getKey(), upgradeResidence(resvals));
-            }
-            Map<String, Object> newroot = new HashMap<String, Object>();
-            newroot.put("Residences", newmap);
-            newroot.put("Leases", root.get("leasetimes"));
-            newroot.put("Economy", root.get("forsale"));
-            newroot.put("PermissionLists", new HashMap<String, Object>());
-            newroot.put("SaveVersion", 1);
-            yml.setRoot(newroot);
-            yml.save();
-            System.out.print("[Residence] Upgraded Save File!");
-            return yml;
-        } catch (Exception ex) {
-            System.out.println("[Residence] FAILED to upgrade save file...");
-            Logger.getLogger(Residence.class.getName()).log(Level.SEVERE, null, ex);
-            throw ex;
-        }
-    }
-
-    public Map<String, Object> upgradeResidence(Map<String, Object> resvals) {
-        Map<String, Object> newmap = new HashMap<String, Object>();
-        Map<String, Object> areas = new HashMap<String, Object>();
-        Map<String, Object> mainarea = new HashMap<String, Object>();
-        mainarea.put("X1", resvals.get("x1"));
-        mainarea.put("Y1", resvals.get("y1"));
-        mainarea.put("Z1", resvals.get("z1"));
-        mainarea.put("X2", resvals.get("x2"));
-        mainarea.put("Y2", resvals.get("y2"));
-        mainarea.put("Z2", resvals.get("z2"));
-        areas.put("main", mainarea);
-        newmap.put("Areas", areas);
-        Map<String, Object> oldperms = (Map<String, Object>) resvals.get("permissions");
-        Map<String, Object> perms = new HashMap<String, Object>();
-        perms.put("AreaFlags", upgradeFlags((Map<String, Object>) oldperms.get("areaflags")));
-        Map<String, Object> pflags = (Map<String, Object>) oldperms.get("playerflags");
-        Map<String, Object> newpflags = new HashMap<String, Object>();
-        for (Entry<String, Object> player : pflags.entrySet()) {
-            newpflags.put(player.getKey(), upgradeFlags((Map<String, Object>) player.getValue()));
-        }
-        perms.put("PlayerFlags", newpflags);
-        Map<String, Object> gflags = (Map<String, Object>) oldperms.get("groupflags");
-        Map<String, Object> newgflags = new HashMap<String, Object>();
-        for (Entry<String, Object> group : gflags.entrySet()) {
-            newpflags.put(group.getKey(), upgradeFlags((Map<String, Object>) group.getValue()));
-        }
-        perms.put("GroupFlags", newgflags);
-        perms.put("Owner", oldperms.get("owner"));
-        perms.put("World", resvals.get("world"));
-        newmap.put("Permissions", perms);
-        newmap.put("EnterMessage", resvals.get("entermessage"));
-        newmap.put("LeaveMessage", resvals.get("leavemessage"));
-        Map<String, Object> sz = (Map<String, Object>) resvals.get("subzones");
-        Map<String, Object> newsz = new HashMap<String, Object>();
-        for (Entry<String, Object> entry : sz.entrySet()) {
-            newsz.put(entry.getKey(), upgradeResidence((Map<String, Object>) entry.getValue()));
-        }
-        newmap.put("Subzones", newsz);
-        return newmap;
-    }
-
-    public Map<String, Object> upgradeFlags(Map<String, Object> inflags) {
-        Map<String, Object> newmap = new HashMap<String, Object>();
-        for (Entry<String, Object> flag : inflags.entrySet()) {
-            String flagname = flag.getKey();
-            boolean flagval = (Boolean) flag.getValue();
-            if (flagname.equals("fire")) {
-                newmap.put("ignite", flagval);
-                newmap.put("firespread", flagval);
-            } else if (flagname.equals("explosions")) {
-                newmap.put("creeper", flagval);
-                newmap.put("tnt", flagval);
-            } else if (flagname.equals("use")) {
-                newmap.put("use", flagval);
-                newmap.put("container", flagval);
-            } else {
-                newmap.put(flagname, flagval);
-            }
-        }
-        return newmap;
     }
 }

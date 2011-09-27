@@ -802,7 +802,7 @@ public class ClaimedResidence {
         res.perms = ResidencePermissions.load(res,(Map<String, Object>) root.get("Permissions"));
         World world = Residence.getServ().getWorld(res.perms.getWorld());
         if(world==null)
-            throw new Exception("Can't find world:" + res.perms.getWorld());
+            throw new Exception("Cant Find World: " + res.perms.getWorld());
         for(Entry<String, Object> map : areamap.entrySet())
         {
             res.areas.put(map.getKey(), CuboidArea.load((Map<String, Object>) map.getValue(),world));
@@ -950,5 +950,19 @@ public class ClaimedResidence {
     public ResidenceItemList getItemIgnoreList()
     {
         return ignorelist;
+    }
+
+    public ArrayList<Player> getPlayersInResidence()
+    {
+        ArrayList<Player> within = new ArrayList<Player>();
+        Player[] players = Residence.getServ().getOnlinePlayers();
+        for(Player player : players)
+        {
+            if(this.containsLoc(player.getLocation()))
+            {
+                within.add(player);
+            }
+        }
+        return within;
     }
 }
