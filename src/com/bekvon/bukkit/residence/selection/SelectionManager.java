@@ -6,6 +6,7 @@
 package com.bekvon.bukkit.residence.selection;
 
 import com.bekvon.bukkit.residence.Residence;
+import com.bekvon.bukkit.residence.economy.EconomyZone;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
 import com.bekvon.bukkit.residence.protection.CuboidArea;
 import java.util.Collections;
@@ -67,8 +68,12 @@ public class SelectionManager {
             CuboidArea cuboidArea = new CuboidArea(getPlayerLoc1(pname), getPlayerLoc2(pname));
             player.sendMessage("§e"+Residence.getLanguage().getPhrase("Selection.Total.Size")+":§3 " + cuboidArea.getSize());
             PermissionGroup group = Residence.getPermissionManager().getGroup(player);
-            if(Residence.getConfig().enableEconomy())
-            player.sendMessage("§e"+Residence.getLanguage().getPhrase("Land.Cost")+":§3 " + ((int)Math.ceil((double)cuboidArea.getSize()*group.getCostPerBlock())));
+            if(Residence.getConfig().enableEconomy()) {
+                EconomyZone zone = Residence.getZoneManager().getZone(cuboidArea.getLowLoc());
+                player.sendMessage("§eZone:§3 " + zone.getDescription());
+                player.sendMessage("§e"+Residence.getLanguage().getPhrase("Land.Cost")+":§3 " + ((int)Math.ceil((double)cuboidArea.getSize()*group.getCostPerBlock()*zone.getBuyFactor())));
+                player.sendMessage("§eRenewal cost:§3 " + ((int)Math.ceil((double)cuboidArea.getSize()*group.getLeaseRenewCost()*zone.getLeaseFactor())));
+            }
             player.sendMessage("§eX"+Residence.getLanguage().getPhrase("Size")+":§3 " + cuboidArea.getXSize());
             player.sendMessage("§eY"+Residence.getLanguage().getPhrase("Size")+":§3 " + cuboidArea.getYSize());
             player.sendMessage("§eZ"+Residence.getLanguage().getPhrase("Size")+":§3 " + cuboidArea.getZSize());

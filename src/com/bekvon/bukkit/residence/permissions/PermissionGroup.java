@@ -47,6 +47,7 @@ public class PermissionGroup {
         protected boolean cancreate;
         protected String groupname;
         protected int maxPhysical;
+        protected int maxAreas;
         protected boolean unstuck;
         protected int minHeight;
         protected int maxHeight;
@@ -82,6 +83,7 @@ public class PermissionGroup {
         cancreate = limits.getBoolean("Residence.CanCreate", false);
         resmax = limits.getInt("Residence.MaxResidences", 0);
         maxPhysical = limits.getInt("Residence.MaxAreasPerResidence",2);
+        maxAreas = limits.getInt("Residence.MaxAreasTotal", resmax * maxPhysical);
         xmax = limits.getInt("Residence.MaxEastWest", 0);
         ymax = limits.getInt("Residence.MaxUpDown", 0);
         zmax = limits.getInt("Residence.MaxNorthSouth", 0);
@@ -239,6 +241,10 @@ public class PermissionGroup {
     {
         return maxPhysical;
     }
+    public int getMaxTotalAreas()
+    {
+        return maxAreas;
+    }
     public Set<Entry<String,Boolean>> getDefaultResidenceFlags()
     {
         return residenceDefaultFlags.entrySet();
@@ -288,13 +294,16 @@ public class PermissionGroup {
         player.sendMessage("§eResidence Admin:§3 " + Residence.getPermissionManager().isResidenceAdmin(player));
         player.sendMessage("§eCan Create Residences:§3 "+cancreate);
         player.sendMessage("§eMax Residences:§3 "+resmax);
-        player.sendMessage("§eMax East/West Size:§3 "+xmax);
-        player.sendMessage("§eMax North/South Size:§3 "+zmax);
-        player.sendMessage("§eMax Up/Down Size:§3 "+ymax);
-        player.sendMessage("§eMin/Max Protection Height:§3 "+minHeight+ " to " + maxHeight);
+        player.sendMessage("§eMax Areas per Residence:�3 "+maxPhysical);
+        player.sendMessage("§eMax Areas Total:�3 "+maxAreas);
+        //player.sendMessage("§eMax East/West Size:§3 "+xmax);
+        //player.sendMessage("§eMax North/South Size:§3 "+zmax);
+        //player.sendMessage("§eMax Up/Down Size:§3 "+ymax);
+        //player.sendMessage("§eMin/Max Protection Height:§3 "+minHeight+ " to " + maxHeight);
         player.sendMessage("§eMax Subzone Depth:§3 "+subzonedepth);
         player.sendMessage("§eCan Set Enter/Leave Messages:§3 "+messageperms);
         player.sendMessage("§eNumber of Residences you own:§3 " + Residence.getResidenceManager().getOwnedZoneCount(player.getName()));
+        player.sendMessage("§eNumber of Areas you own:§3 " + Residence.getResidenceManager().getTotalAreaCount(player.getName()));
         if(Residence.getEconomyManager()!=null)
             player.sendMessage("§eResidence Cost Per Block:§3 " + costperarea);
         player.sendMessage("§eFlag Permissions:§3 " + flagPerms.listFlags());

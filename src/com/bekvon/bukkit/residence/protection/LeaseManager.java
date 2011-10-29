@@ -17,6 +17,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
 /**
@@ -91,7 +93,7 @@ public class LeaseManager {
         {
             double cost = limits.getLeaseRenewCost();
             ClaimedResidence res = manager.getByName(area);
-            int amount = (int) Math.ceil((double)res.getTotalSize() * cost);
+            int amount = (int) Math.ceil((double)res.getTotalSize() * cost * res.getLeaseFactor());
             if(cost!=0D)
             {
                 //Account account = iConomy.getBank().getAccount(player.getName());
@@ -130,7 +132,7 @@ public class LeaseManager {
     {
         PermissionGroup limits = Residence.getPermissionManager().getGroup(res.getPermissions().getOwner(), res.getPermissions().getWorld());
         double cost = limits.getLeaseRenewCost();
-        int amount = (int) Math.ceil((double)res.getTotalSize() * cost);
+        int amount = (int) Math.ceil((double)res.getTotalSize() * cost * res.getLeaseFactor());
         return amount;
     }
 
@@ -188,6 +190,15 @@ public class LeaseManager {
                             ResidenceDeleteEvent resevent = new ResidenceDeleteEvent(null, res, DeleteCause.LEASE_EXPIRE);
                             Residence.getServ().getPluginManager().callEvent(resevent);
                             if (!resevent.isCancelled()) {
+                                CuboidArea area;
+                                Location LL, HL;
+                                System.out.println("Lease expired! " + res.getName() + ", " + res.getOwner() + ", " + res.getWorld());
+                                for (Entry<String, CuboidArea> entry : res.areas.entrySet()) {
+                                    area = entry.getValue();
+                                    LL = area.getLowLoc();
+                                    HL = area.getHighLoc();
+                                    System.out.println("Area expired! " + entry.getKey() + " (" + LL.getBlockX() + "," + LL.getBlockY() + "," + LL.getBlockZ() + ") (" + HL.getBlockX() + "," + HL.getBlockY() + "," + HL.getBlockZ() + ")");  
+                                }
                                 manager.removeResidence(next.getKey());
                                 it.remove();
                                 if(Residence.getConfig().debugEnabled())

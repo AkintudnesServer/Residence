@@ -17,10 +17,11 @@ import com.bekvon.bukkit.residence.economy.EssentialsEcoAdapter;
 import com.bekvon.bukkit.residence.economy.IConomy4Adapter;
 import com.bekvon.bukkit.residence.economy.IConomy5Adapter;
 import com.bekvon.bukkit.residence.economy.IConomy6Adapter;
-import com.bekvon.bukkit.residence.economy.MineConomyAdapter;
+//import com.bekvon.bukkit.residence.economy.MineConomyAdapter;
 import com.bekvon.bukkit.residence.economy.RealShopEconomy;
 import com.bekvon.bukkit.residence.economy.rent.RentManager;
 import com.bekvon.bukkit.residence.economy.TransactionManager;
+import com.bekvon.bukkit.residence.economy.ZoneManager;
 import com.bekvon.bukkit.residence.event.ResidenceCommandEvent;
 import com.bekvon.bukkit.residence.itemlist.WorldItemManager;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
@@ -39,7 +40,7 @@ import com.bekvon.bukkit.residence.text.help.HelpEntry;
 import com.bekvon.bukkit.residence.text.help.InformationPager;
 import com.earth2me.essentials.Essentials;
 import com.iConomy.iConomy;
-import com.spikensbror.bukkit.mineconomy.MineConomy;
+//import com.spikensbror.bukkit.mineconomy.MineConomy;
 import cosine.boseconomy.BOSEconomy;
 import fr.crafter.tickleman.RealShop.RealShopPlugin;
 
@@ -91,6 +92,7 @@ public class Residence extends JavaPlugin {
     private static LeaseManager leasemanager;
     private static WorldItemManager imanager;
     private static WorldFlagManager wmanager;
+    private static ZoneManager zmanager;
     private static RentManager rentmanager;
     private static ChatManager chatmanager;
     private static Server server;
@@ -188,6 +190,7 @@ public class Residence extends JavaPlugin {
             gmanager = new PermissionManager(this.getConfiguration());
             imanager = new WorldItemManager(this.getConfiguration());
             wmanager = new WorldFlagManager(this.getConfiguration());
+            zmanager = new ZoneManager(this.getConfiguration());
             chatmanager = new ChatManager();
             rentmanager = new RentManager();
             try
@@ -222,8 +225,8 @@ public class Residence extends JavaPlugin {
             if (this.getConfiguration().getBoolean("Global.EnableEconomy", false) && econsys != null) {
                 if (econsys.toLowerCase().equals("iconomy")) {
                     this.loadIConomy();
-                } else if (econsys.toLowerCase().equals("mineconomy")) {
-                    this.loadMineConomy();
+//                } else if (econsys.toLowerCase().equals("mineconomy")) {
+//                    this.loadMineConomy();
                 } else if (econsys.toLowerCase().equals("boseconomy")) {
                     this.loadBOSEconomy();
                 } else if (econsys.toLowerCase().equals("essentials")) {
@@ -387,6 +390,10 @@ public class Residence extends JavaPlugin {
         return tmanager;
     }
 
+    public static ZoneManager getZoneManager() {
+        return zmanager;
+    }
+
     public static WorldItemManager getItemManager()
     {
         return imanager;
@@ -465,6 +472,7 @@ public class Residence extends JavaPlugin {
         }
     }
 
+    /* this is ancient
     private void loadMineConomy()
     {
         Plugin p = getServer().getPluginManager().getPlugin("MineConomy");
@@ -475,6 +483,7 @@ public class Residence extends JavaPlugin {
             Logger.getLogger("Minecraft").log(Level.INFO, "[Residence] MineConomy NOT found!");
         }
     }
+    */
 
     private void loadBOSEconomy()
     {
@@ -1315,9 +1324,15 @@ public class Residence extends JavaPlugin {
                         } else if (args[1].equals("cost")) {
                             if (args.length == 3) {
                                 ClaimedResidence res = Residence.getResidenceManager().getByName(args[2]);
-                                if (res == null || leasemanager.leaseExpires(args[2])) {
+                                if (res == null) {
+                                    player.sendMessage("§c"+language.getPhrase("InvalidResidence"));
+                                }
+                                //if (res == null || leasemanager.leaseExpires(args[2])) {
+                                if (leasemanager.leaseExpires(args[2])) {
                                     int cost = leasemanager.getRenewCost(res);
                                     player.sendMessage("§e"+language.getPhrase("LeaseRenewalCost","§c" + args[2] + "§e.§c" + cost + "§e"));
+                                    player.sendMessage("§eZone: §a" + res.getZone().getDescription());
+
                                 } else {
                                     player.sendMessage("§c"+language.getPhrase("LeaseNotExpire"));
                                 }

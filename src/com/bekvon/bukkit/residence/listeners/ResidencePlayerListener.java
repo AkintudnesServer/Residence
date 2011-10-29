@@ -119,6 +119,9 @@ public class ResidencePlayerListener extends PlayerListener {
                     String res = Residence.getResidenceManager().getNameByLoc(loc);
                     if(res!=null)
                         Residence.getResidenceManager().printAreaInfo(res, player);
+                    else
+                        Residence.getZoneManager().printZoneInfo(loc, player);
+                    event.setCancelled(true);
                 }
             }
             Material mat = block.getType();

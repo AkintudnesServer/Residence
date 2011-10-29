@@ -136,6 +136,10 @@ public class TransactionManager {
                 player.sendMessage("§c"+Residence.getLanguage().getPhrase("OwnerBuyFail"));
                 return;
             }
+            if (Residence.getResidenceManager().getTotalAreaCount(player.getName()) >= group.getMaxTotalAreas() && !resadmin) {
+                player.sendMessage("§cYou have reached your total allowed areas.");
+                return;
+            }
             if (Residence.getResidenceManager().getOwnedZoneCount(player.getName()) >= group.getMaxZones() && !resadmin) {
                 player.sendMessage("§c"+Residence.getLanguage().getPhrase("ResidenceTooMany"));
                 return;

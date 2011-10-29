@@ -6,6 +6,7 @@
 package com.bekvon.bukkit.residence.protection;
 
 import com.bekvon.bukkit.residence.Residence;
+import com.bekvon.bukkit.residence.economy.EconomyZone;
 import com.bekvon.bukkit.residence.event.ResidenceCreationEvent;
 import com.bekvon.bukkit.residence.event.ResidenceDeleteEvent;
 import com.bekvon.bukkit.residence.event.ResidenceDeleteEvent.DeleteCause;
@@ -313,6 +314,35 @@ public class ResidenceManager {
                 if(res.getPermissions().getOwner().equalsIgnoreCase(player))
                 {
                     count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    public int getTotalAreaCount(String player)
+    {
+        Collection<ClaimedResidence> set = residences.values();
+        Collection<CuboidArea> area;
+        EconomyZone zone;
+        int count=0;
+        synchronized(residences)
+        {
+            for(ClaimedResidence res : set)
+            {
+                if(res.getPermissions().getOwner().equalsIgnoreCase(player))
+                {
+                    for(Entry<String, CuboidArea> entry : res.areas.entrySet())
+                    {
+                        zone = res.getAreaZone(entry.getKey());
+                        if (zone == null) {
+                            count += 1;
+                        }
+                        else {
+                            count += zone.getAreaFactor();
+                            //System.out.println(zone.getName() + " " + zone.getAreaFactor() + " " + count);
+                        }
+                    }
                 }
             }
         }

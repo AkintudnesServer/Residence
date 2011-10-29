@@ -5,6 +5,7 @@
 package com.bekvon.bukkit.residence.protection;
 
 import com.bekvon.bukkit.residence.Residence;
+import com.bekvon.bukkit.residence.economy.EconomyZone;
 import com.bekvon.bukkit.residence.economy.ResidenceBank;
 import com.bekvon.bukkit.residence.economy.TransactionManager;
 import com.bekvon.bukkit.residence.event.ResidenceTPEvent;
@@ -137,6 +138,10 @@ public class ClaimedResidence {
                 player.sendMessage("§c"+Residence.getLanguage().getPhrase("AreaMaxPhysical"));
                 return false;
             }
+            if (Residence.getResidenceManager().getTotalAreaCount(player.getName()) >= group.getMaxTotalAreas() && !resadmin) {
+                player.sendMessage("§cYou have reached your total allowed areas.");
+                return false;
+            }
             if(!group.inLimits(area))
             {
                 player.sendMessage("§c"+Residence.getLanguage().getPhrase("AreaSizeLimit"));
@@ -154,11 +159,13 @@ public class ClaimedResidence {
             }
             if(parent==null && Residence.getConfig().enableEconomy())
             {
-                int chargeamount = (int) Math.ceil((double)area.getSize() * group.getCostPerBlock());
+                EconomyZone zone = Residence.getZoneManager().getZone(area.getLowLoc());
+                int chargeamount = (int) Math.ceil((double)area.getSize() * group.getCostPerBlock() * zone.getBuyFactor());
                 if(!TransactionManager.chargeEconomyMoney(player, chargeamount))
                 {
                     return false;
                 }
+                player.sendMessage("§aZone: §e" + zone.getName() + "§a.");
             }
         }
         areas.put(name, area);
@@ -237,7 +244,7 @@ public class ClaimedResidence {
                 return false;
             }
             if (parent == null && Residence.getConfig().enableEconomy()) {
-                int chargeamount = (int) Math.ceil((double) (newarea.getSize()-oldarea.getSize()) * group.getCostPerBlock());
+                int chargeamount = (int) Math.ceil((double) (newarea.getSize()-oldarea.getSize()) * group.getCostPerBlock() * getBuyFactor());
                 if(chargeamount>0)
                 {
                     if (!TransactionManager.chargeEconomyMoney(player, chargeamount)) {
@@ -368,6 +375,38 @@ public class ClaimedResidence {
             return res;
         }
         return subrez;
+    }
+
+    public EconomyZone getZone() {
+        Integer minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int areaX, areaZ;
+        Set<String> set = areas.keySet();
+        World world = null;
+        for (String key : set) {
+            CuboidArea area = areas.get(key);
+            if (area != null) {
+                areaX = area.getLowLoc().getBlockX();
+                areaZ = area.getLowLoc().getBlockZ();
+                minX = Math.min(minX, areaX);
+                minZ = Math.min(minZ, areaZ);
+                world = area.getWorld();
+            }
+        }
+        Location loc = new Location(world, minX.doubleValue(), 0.0, minZ.doubleValue());
+        return Residence.getZoneManager().getZone(loc);
+    }
+
+    public EconomyZone getAreaZone(String name) {
+        CuboidArea area = areas.get(name);
+        return Residence.getZoneManager().getZone(area.getLowLoc());
+    }
+
+    public double getBuyFactor() {
+        return getZone().getBuyFactor();
+    }
+
+    public double getLeaseFactor() {
+        return getZone().getLeaseFactor();
     }
 
     public ClaimedResidence getSubzone(String subzonename) {
