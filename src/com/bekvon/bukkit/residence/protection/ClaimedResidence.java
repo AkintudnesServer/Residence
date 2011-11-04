@@ -92,6 +92,13 @@ public class ClaimedResidence {
                     player.sendMessage("§c"+Residence.getLanguage().getPhrase("AreaCollision","§e" + collideResidence));
                 return false;
             }
+            String collideArea = checkAreaRepeat(area, this);
+            if(collideArea!=null)
+            {
+                if(player!=null)
+                    player.sendMessage("§cYou already own this area. (§e" + collideArea + "§c)");
+                return false;
+            }
         }
         else
         {
@@ -464,6 +471,17 @@ public class ClaimedResidence {
         return false;
     }
 
+    public String checkAreaRepeat(CuboidArea newarea, ClaimedResidence parentResidence) {
+        Set<String> set = parentResidence.areas.keySet();
+        for (String key : set) {
+            CuboidArea checkArea = parentResidence.areas.get(key);
+            if (checkArea.getHighLoc().equals(newarea.getHighLoc()) && checkArea.getLowLoc().equals(newarea.getLowLoc())) {
+                return key;
+            }
+        }
+        return null;
+    }
+
     public boolean containsLoc(Location loc) {
         Collection<CuboidArea> keys = areas.values();
         for (CuboidArea key : keys) {
@@ -784,7 +802,8 @@ public class ClaimedResidence {
                 return;
             }
             removeArea(id);
-            player.sendMessage("§a"+Residence.getLanguage().getPhrase("AreaRemove"));
+            //player.sendMessage("§a"+Residence.getLanguage().getPhrase("AreaRemove"));
+            player.sendMessage("§a"+Residence.getLanguage().getPhrase("AreaRemove","§e"+id+"§a"));
         }
         else
             player.sendMessage("§c"+Residence.getLanguage().getPhrase("NoPermission"));

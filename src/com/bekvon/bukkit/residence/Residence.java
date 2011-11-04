@@ -679,6 +679,11 @@ public class Residence extends JavaPlugin {
                         player.sendMessage("§c" + language.getPhrase("SelectDiabled"));
                         return true;
                     }
+                    if (!group.freeSelectAccess() && !(args.length == 2 && args[1].matches("(chunk|size|cost)"))) {
+                            //|| !(args.length == 3 && args[1].equals("expand") && args[2].equals("chunk"))) {
+                        player.sendMessage("�cCan't select non-chunk-sized selections.");
+                        return true;
+                    }
                     if (args.length == 2) {
                         if (args[1].equals("size") || args[1].equals("cost")) {
                             if (smanager.hasPlacedBoth(pname)) {
@@ -1326,6 +1331,7 @@ public class Residence extends JavaPlugin {
                                 ClaimedResidence res = Residence.getResidenceManager().getByName(args[2]);
                                 if (res == null) {
                                     player.sendMessage("§c"+language.getPhrase("InvalidResidence"));
+                                    return true;
                                 }
                                 //if (res == null || leasemanager.leaseExpires(args[2])) {
                                 if (leasemanager.leaseExpires(args[2])) {
